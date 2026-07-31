@@ -45,7 +45,7 @@ function App() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create task.');
+        throw new Error('Failed to create task1.');
       }
 
       const createdTodo = await res.json();
