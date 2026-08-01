@@ -73,14 +73,20 @@ stages:
         sshEndpoint: '$(sshServiceConnection)'
         runOptions: 'inline'
         inline: |
-          # 1. Navigate to your cloned GitHub project directory on the VM
-          cd ~/Devops_Projects
+          # 1. Clone the repository if it doesn't exist on the VM yet
+          if [ ! -d "$HOME/Devops_Projects" ]; then
+            echo "--- Repository not found on VM. Cloning it now... ---"
+            git clone https://github.com/Manjunath9742/Devops_Projects.git "$HOME/Devops_Projects"
+          fi
           
-          # 2. Pull the latest code (contains any updates to docker-compose.yml)
+          # 2. Navigate to the project directory
+          cd "$HOME/Devops_Projects"
+          
+          # 3. Pull the latest code changes
           git pull origin main
           
-          # 3. Pull the newly pushed images from Docker Hub
+          # 4. Pull the latest images from Docker Hub
           docker compose pull
           
-          # 4. Re-launch the containers in detached (background) mode
+          # 5. Re-launch the containers in background mode
           docker compose up -d
