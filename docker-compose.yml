@@ -16,9 +16,7 @@ services:
 
   # Backend Node.js service
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: manjuns2012/todo-backend:latest
     container_name: todo-backend-api
     restart: always
     ports:
@@ -36,9 +34,7 @@ services:
 
   # Frontend Nginx service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: manjuns2012/todo-frontend:latest
     container_name: todo-frontend-web
     restart: always
     ports:

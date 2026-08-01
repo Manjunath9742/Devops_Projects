@@ -5,30 +5,82 @@ resources:
 - repo: self
 
 variables:
-  # 1. Name of the Docker Hub connection you created in Azure DevOps Settings
+  # 1. Docker Hub Service Connection name in Azure DevOps
   dockerRegistryServiceConnection: 'dockerhub-conn'
   
-  # 2. Your Docker Hub username + repository name
-  repositoryName: 'manjuns2012/my_repo'
+  # 2. SSH Service Connection name in Azure DevOps pointing to your Azure VM
+  sshServiceConnection: 'vm-ssh-connection'
+  
+  # Docker Hub repositories
+  imageRepositoryBackend: 'manjuns2012/todo-backend'
+  imageRepositoryFrontend: 'manjuns2012/todo-frontend'
   
   tag: '$(Build.BuildId)'
 
 stages:
+# -----------------------------------------------------------
+# STAGE 1: Build and Push both Frontend and Backend Images
+# -----------------------------------------------------------
 - stage: Build
-  displayName: Build image
+  displayName: Build and Push Images
   jobs:
   - job: Build
     displayName: Build
     pool:
       vmImage: ubuntu-latest
     steps:
+    # Build & Push Backend Image
     - task: Docker@2
       displayName: Build and Push Backend Image
       inputs:
-        containerRegistry: '$(dockerRegistryServiceConnection)' # Log in using your service connection
-        repository: '$(repositoryName)'                          # Where to store it in Docker Hub
-        command: 'buildAndPush'                                  # Build AND upload it
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepositoryBackend)'
+        command: 'buildAndPush'
         dockerfile: '$(Build.SourcesDirectory)/backend/Dockerfile'
         tags: |
           $(tag)
           latest
+
+    # Build & Push Frontend Image
+    - task: Docker@2
+      displayName: Build and Push Frontend Image
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepositoryFrontend)'
+        command: 'buildAndPush'
+        dockerfile: '$(Build.SourcesDirectory)/frontend/Dockerfile'
+        tags: |
+          $(tag)
+          latest
+
+# -----------------------------------------------------------
+# STAGE 2: Deploy to your Azure VM via SSH
+# -----------------------------------------------------------
+- stage: Deploy
+  displayName: Deploy to VM
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    # Connects to your Azure VM via SSH and runs deployment commands
+    - task: SSH@0
+      displayName: 'Run deployment commands on VM'
+      inputs:
+        sshEndpoint: '$(sshServiceConnection)'
+        runOptions: 'inline'
+        inline: |
+          # 1. Navigate to your cloned GitHub project directory on the VM
+          cd ~/Devops_Projects
+          
+          # 2. Pull the latest code (contains any updates to docker-compose.yml)
+          git pull origin main
+          
+          # 3. Pull the newly pushed images from Docker Hub
+          docker compose pull
+          
+          # 4. Re-launch the containers in detached (background) mode
+          docker compose up -d
